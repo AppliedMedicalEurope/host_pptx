@@ -14,15 +14,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Upload endpoint
-app.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).send('No file uploaded');
-  res.send(`
-    File uploaded:<br>
-    - <a href="/files/${req.file.originalname}" download>Download ${req.file.originalname}</a>
-  `);
-});
-
 // File download endpoint
 app.get('/files/:filename', (req, res) => {
   const filePath = path.join(uploadDir, req.params.filename);
@@ -40,21 +31,50 @@ app.get('/files/:filename', (req, res) => {
   res.download(filePath);
 });
 
-// Homepage with upload form and file list
+// Delete file endpoint
+app.delete('/files/:filename', (req, res) => {
+  const filePath = path.join(uploadDir, req.params.filename);
+  if (!fs.existsSync(filePath)) return res.status(404).send('File not found');
+  
+  fs.unlink(filePath, (err) => {
+    if (err) {
+      console.error('Error deleting file:', err);
+      return res.status(500).send('Error deleting file');
+    }
+    res.send('File deleted successfully');
+  });
+});
+
+// Homepage with file list and delete options
 app.get('/', (req, res) => {
   const files = fs.readdirSync(uploadDir).filter(file => file !== '.gitkeep');
   const listItems = files.map(file => 
-    `<li><a href="/files/${file}" download>${file}</a></li>`
+    `<li>
+      <a href="/files/${file}" download>${file}</a>
+      <button onclick="deleteFile('${file}')" style="margin-left: 10px;">Delete</button>
+    </li>`
   ).join('');
   
   res.send(`
     <h2>PowerPoint File Hosting</h2>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-      <input type="file" name="file" accept=".ppt,.pptx" required>
-      <button type="submit">Upload</button>
-    </form>
     <h3>Files:</h3>
     <ul>${listItems}</ul>
+    <script>
+      function deleteFile(filename) {
+        if (confirm('Are you sure you want to delete ' + filename + '?')) {
+          fetch('/files/' + filename, { method: 'DELETE' })
+            .then(response => response.text())
+            .then(data => {
+              alert(data);
+              location.reload();
+            })
+            .catch(error => {
+              console.error('Error:', error);
+              alert('Error deleting file');
+            });
+        }
+      }
+    </script>
   `);
 });
 
