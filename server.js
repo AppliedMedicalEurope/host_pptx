@@ -14,6 +14,16 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// Upload endpoint
+app.post('/upload', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).send('No file uploaded');
+  res.json({ 
+    message: 'File uploaded successfully',
+    filename: req.file.originalname,
+    downloadUrl: `/files/${req.file.originalname}`
+  });
+});
+
 // File download endpoint
 app.get('/files/:filename', (req, res) => {
   const filePath = path.join(uploadDir, req.params.filename);
